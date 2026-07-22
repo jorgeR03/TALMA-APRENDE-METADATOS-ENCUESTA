@@ -114,6 +114,12 @@
   }
   .add-row button.save { background: var(--green); color:#0A1230; border-color: var(--green); }
   td.added, .xls-rownum.added { color: var(--accent); font-weight: 700; }
+  .xls-action { width: 40px; text-align:center !important; }
+  .btn-del {
+    background:none; border:none; cursor:pointer; color: var(--text-muted);
+    font-size: 16px; line-height:1; padding: 3px 7px; border-radius: 6px; transition: color .15s, background .15s;
+  }
+  .btn-del:hover { color: #D2453C; background: rgba(210,69,60,0.14); }
 
   .list-wrap { max-height: 560px; overflow-y: auto; border: 1px solid var(--border); border-radius: 10px; }
   table.xls-table { width:100%; border-collapse: collapse; font-size: 13px; }
@@ -216,16 +222,23 @@ const TABS = [
 ];
 let activeTab = 'instructores';
 
-const STORAGE_KEY = 'encuesta_agregados_v1';
-function loadExtras() {
+const STORAGE_KEY = 'encuesta_cambios_v1';
+function emptyLists() { return { instructores: [], cursos: [], bases: [] }; }
+function loadState() {
   try {
     const raw = JSON.parse(localStorage.getItem(STORAGE_KEY));
-    return { instructores: raw?.instructores || [], cursos: raw?.cursos || [], bases: raw?.bases || [] };
-  } catch (e) { return { instructores: [], cursos: [], bases: [] }; }
+    return {
+      extras: { instructores: raw?.extras?.instructores || [], cursos: raw?.extras?.cursos || [], bases: raw?.extras?.bases || [] },
+      removed: { instructores: raw?.removed?.instructores || [], cursos: raw?.removed?.cursos || [], bases: raw?.removed?.bases || [] },
+    };
+  } catch (e) { return { extras: emptyLists(), removed: emptyLists() }; }
 }
-function saveExtras() { localStorage.setItem(STORAGE_KEY, JSON.stringify(extras)); }
-let extras = loadExtras();
-function currentData(key) { return DATA[key].concat(extras[key]); }
+function saveState() { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
+let state = loadState();
+function currentData(key) {
+  const removedSet = new Set(state.removed[key]);
+  return DATA[key].filter(v => !removedSet.has(v)).concat(state.extras[key]);
+}
 
 (function renderKPIs(){
   const kpisEl = document.getElementById('kpis');
@@ -270,11 +283,15 @@ function setTab(key) {
 function renderList() {
   const tab = TABS.find(t => t.key === activeTab);
   const q = document.getElementById('f-search').value.trim().toUpperCase();
-  const base = DATA[tab.key];
+  const removedSet = new Set(state.removed[tab.key]);
   // conserva el indice de fila original de Excel (fila 2 = primer dato, igual que en la hoja); los agregados manuales no tienen fila de origen
-  const withRow = currentData(tab.key).map((v, i) => ({ v, excelRow: i + 2, added: i >= base.length }));
-  const items = q ? withRow.filter(x => x.v.toUpperCase().includes(q)) : withRow;
-  document.getElementById('f-count').textContent = fmt(items.length) + ' de ' + fmt(withRow.length);
+  const baseRows = DATA[tab.key]
+    .map((v, i) => ({ v, excelRow: i + 2, added: false }))
+    .filter(x => !removedSet.has(x.v));
+  const extraRows = state.extras[tab.key].map(v => ({ v, excelRow: null, added: true }));
+  const allRows = baseRows.concat(extraRows);
+  const items = q ? allRows.filter(x => x.v.toUpperCase().includes(q)) : allRows;
+  document.getElementById('f-count').textContent = fmt(items.length) + ' de ' + fmt(allRows.length);
   const wrap = document.getElementById('list-wrap');
   wrap.innerHTML = '';
   if (!items.length) {
@@ -287,7 +304,7 @@ function renderList() {
   const table = document.createElement('table');
   table.className = 'xls-table';
   const thead = document.createElement('thead');
-  thead.innerHTML = `<tr><th class="xls-rownum"></th><th>${tab.header}</th></tr>`;
+  thead.innerHTML = `<tr><th class="xls-rownum"></th><th>${tab.header}</th><th class="xls-action"></th></tr>`;
   const tbody = document.createElement('tbody');
   items.forEach(x => {
     const tr = document.createElement('tr');
@@ -298,11 +315,34 @@ function renderList() {
     const tdVal = document.createElement('td');
     tdVal.textContent = x.v;
     if (x.added) tdVal.className = 'added';
-    tr.append(tdRow, tdVal);
+    const tdAction = document.createElement('td');
+    tdAction.className = 'xls-action';
+    const delBtn = document.createElement('button');
+    delBtn.type = 'button';
+    delBtn.className = 'btn-del';
+    delBtn.title = 'Eliminar';
+    delBtn.textContent = '×';
+    delBtn.addEventListener('click', () => deleteItem(tab.key, x.v));
+    tdAction.appendChild(delBtn);
+    tr.append(tdRow, tdVal, tdAction);
     tbody.appendChild(tr);
   });
   table.append(thead, tbody);
   wrap.appendChild(table);
+}
+
+function deleteItem(key, value) {
+  const tab = TABS.find(t => t.key === key);
+  if (!confirm('¿Eliminar "' + value + '" de la lista de ' + tab.label.toLowerCase() + '?')) return;
+  if (state.extras[key].includes(value)) {
+    state.extras[key] = state.extras[key].filter(v => v !== value);
+  } else if (!state.removed[key].includes(value)) {
+    state.removed[key].push(value);
+  }
+  saveState();
+  updateKPI(key);
+  renderTabs();
+  renderList();
 }
 
 function showAddRow() {
@@ -320,8 +360,10 @@ function saveAdd() {
   if (!val) return;
   const exists = currentData(tab.key).some(v => v.toUpperCase() === val);
   if (exists) { alert('Ya existe en la lista de ' + tab.label.toLowerCase() + '.'); return; }
-  extras[tab.key].push(val);
-  saveExtras();
+  // si antes se habia eliminado este mismo valor de la base, "agregarlo" lo restaura
+  state.removed[tab.key] = state.removed[tab.key].filter(v => v !== val);
+  if (!DATA[tab.key].includes(val)) state.extras[tab.key].push(val);
+  saveState();
   hideAddRow();
   updateKPI(tab.key);
   renderTabs();
@@ -342,11 +384,11 @@ function descargarExcel() {
   const fecha = new Date().toISOString().slice(0, 10);
   let sheets = '';
   TABS.forEach(t => {
-    const base = DATA[t.key];
     const rows = currentData(t.key);
+    const extraSet = new Set(state.extras[t.key]);
     let rowsXml = '<Row ss:StyleID="Header"><Cell><Data ss:Type="String">' + xmlEsc(t.header) + '</Data></Cell></Row>\n';
-    rows.forEach((v, i) => {
-      const styleId = i >= base.length ? ' ss:StyleID="Added"' : '';
+    rows.forEach(v => {
+      const styleId = extraSet.has(v) ? ' ss:StyleID="Added"' : '';
       rowsXml += '<Row' + styleId + '><Cell><Data ss:Type="String">' + xmlEsc(v) + '</Data></Cell></Row>\n';
     });
     sheets += '<Worksheet ss:Name="' + xmlEsc(t.label) + '"><Table><Column ss:Width="320"/>\n' + rowsXml + '</Table></Worksheet>\n';
