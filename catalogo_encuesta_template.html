@@ -1,0 +1,378 @@
+<title>Instructores, Cursos y Bases — Encuesta Talma Aprende</title>
+<meta name="color-scheme" content="dark">
+<style>
+  :root, .viz-root {
+    color-scheme: dark;
+    --navy:           #16245C;
+    --navy-700:       #101B45;
+    --navy-600:       #233A7A;
+    --green:          #70B818;
+    --green-600:      #5C9613;
+    --surface-1:      #131B40;
+    --page:           #0A1230;
+    --text-primary:   #FFFFFF;
+    --text-secondary: #C7CEDA;
+    --text-muted:     #8B93B3;
+    --grid:           #263159;
+    --baseline:       #33407A;
+    --border:         rgba(255,255,255,0.12);
+    --accent:         #8CCB2E;
+    --accent-wash:    rgba(112,184,24,0.16);
+    --mono:           ui-monospace, "Cascadia Mono", "SF Mono", Consolas, "Roboto Mono", monospace;
+    --card-shadow:    0 1px 2px rgba(0,0,0,0.35), 0 1px 1px rgba(0,0,0,0.25);
+  }
+  * { box-sizing: border-box; }
+  html, body { margin:0; padding:0; background: var(--page); color: var(--text-primary); }
+  .viz-root {
+    background-color: var(--page);
+    background-image: linear-gradient(rgba(9,14,34,.90), rgba(9,14,34,.94)), url("data:image/jpeg;base64,__HERO_B64__");
+    background-size: cover; background-position: center 30%; background-attachment: fixed; background-repeat: no-repeat;
+    color: var(--text-primary);
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    min-height: 100vh; padding: 0 0 60px;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 20px; }
+
+  @keyframes fadeSlideIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+  @media (prefers-reduced-motion: no-preference) {
+    .banner, .kpis, .card { animation: fadeSlideIn .5s ease both; }
+    .kpis { animation-delay: .08s; }
+    .card { animation-delay: .16s; }
+    .card { transition: box-shadow .18s ease, transform .18s ease; }
+    .card:hover { transform: translateY(-1px); box-shadow: 0 6px 18px rgba(0,0,0,0.35), 0 1px 2px rgba(0,0,0,0.3); }
+  }
+
+  .banner {
+    background: linear-gradient(155deg, var(--navy) 0%, var(--navy-700) 100%);
+    margin: 0 0 20px; padding: 20px 20px 16px;
+    border-bottom: 3px solid var(--green);
+    position: relative; overflow: hidden;
+  }
+  .banner::after {
+    content: ''; position: absolute; inset: 0;
+    background: linear-gradient(115deg, transparent 30%, rgba(255,255,255,0.10) 45%, transparent 60%);
+    background-size: 220% 220%; background-position: 130% 0;
+    pointer-events: none;
+  }
+  @media (prefers-reduced-motion: no-preference) { .banner::after { animation: sheen 1.6s ease-out .3s both; } }
+  @keyframes sheen { from { background-position: 130% 0; } to { background-position: -30% 0; } }
+  .banner-inner { max-width: 1080px; margin: 0 auto; display:flex; align-items:center; gap: 18px; flex-wrap: wrap; }
+  .banner-logo { height: 34px; width: auto; flex: none; display:block; }
+  .banner-text h1 { color: #fff; font-size: 20px; font-weight: 700; margin: 0 0 4px; letter-spacing: -0.01em; text-wrap: balance; }
+  .banner-text p { margin: 0; color: rgba(255,255,255,0.82); font-size: 12.5px; line-height: 1.5; max-width: 760px; }
+
+  .kpis { display:grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 18px; }
+  @media (max-width: 640px) { .kpis { grid-template-columns: 1fr; } }
+  .kpi { background: var(--surface-1); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; box-shadow: var(--card-shadow); cursor:pointer; transition: border-color .15s; }
+  .kpi:hover { border-color: var(--green); }
+  .kpi.active { border-color: var(--green); box-shadow: 0 0 0 1px var(--green), var(--card-shadow); }
+  .kpi .label { font-size: 11.5px; color: var(--text-secondary); margin-bottom: 6px; }
+  .kpi .value { font-family: var(--mono); font-size: 26px; font-weight: 600; line-height:1; color: var(--accent); }
+  .kpi .foot { font-size: 11px; color: var(--text-muted); margin-top: 5px; }
+
+  .card { background: var(--surface-1); border: 1px solid var(--border); border-radius: 14px; box-shadow: var(--card-shadow); padding: 18px 20px; }
+  .card h2 { font-size: 14.5px; font-weight: 700; margin: 0 0 2px; }
+  .card .sub { font-size: 12.5px; color: var(--text-secondary); margin: 0 0 16px; }
+
+  .tabs { display:flex; gap:8px; margin-bottom: 14px; flex-wrap:wrap; }
+  .tab-btn {
+    font: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer;
+    background: var(--page); color: var(--text-secondary);
+    border: 1px solid var(--border); border-radius: 8px; padding: 7px 13px;
+    transition: background .15s, color .15s, border-color .15s;
+  }
+  .tab-btn:hover { color: var(--text-primary); border-color: var(--green); }
+  .tab-btn.active { background: var(--green); color: #0A1230; border-color: var(--green); }
+
+  .filters { display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-bottom: 14px; }
+  .filters input[type="text"] {
+    font: inherit; font-size: 13px; padding: 8px 12px; border-radius: 8px;
+    border: 1px solid var(--border); background: var(--page); color: var(--text-primary);
+    min-width: 260px; flex: 1;
+  }
+  .filters input[type="text"]:focus { outline: 2px solid var(--green); outline-offset: 1px; }
+  .filters .count { font-size: 12.5px; color: var(--text-muted); white-space: nowrap; }
+  .btn-add, .btn-excel {
+    display:inline-flex; align-items:center; gap:6px; font: inherit; font-size: 12.5px; font-weight: 700;
+    padding: 7px 13px; border-radius: 8px; border: 1px solid var(--border); cursor: pointer;
+    background: var(--page); color: var(--text-secondary); transition: border-color .15s, color .15s, filter .15s; white-space: nowrap;
+  }
+  .btn-add:hover { color: var(--text-primary); border-color: var(--green); }
+  .btn-excel { background: var(--green); color: #0A1230; border-color: var(--green); }
+  .btn-excel:hover { filter: brightness(1.08); }
+  .btn-add:active, .btn-excel:active { transform: translateY(1px); }
+  .btn-add svg, .btn-excel svg { width:14px; height:14px; flex:none; }
+
+  .add-row { display:flex; gap:8px; align-items:center; margin: -4px 0 14px; }
+  .add-row input[type="text"] {
+    font: inherit; font-size: 13px; padding: 8px 12px; border-radius: 8px;
+    border: 1px solid var(--green); background: var(--page); color: var(--text-primary); flex:1;
+  }
+  .add-row button {
+    font: inherit; font-size: 12.5px; font-weight:700; cursor:pointer; padding: 8px 14px;
+    border-radius: 8px; border: 1px solid var(--border); background: var(--page); color: var(--text-secondary);
+  }
+  .add-row button.save { background: var(--green); color:#0A1230; border-color: var(--green); }
+  td.added, .xls-rownum.added { color: var(--accent); font-weight: 700; }
+
+  .list-wrap { max-height: 560px; overflow-y: auto; border: 1px solid var(--border); border-radius: 10px; }
+  table.xls-table { width:100%; border-collapse: collapse; font-size: 13px; }
+  table.xls-table thead th {
+    position: sticky; top: 0; z-index: 2;
+    background: var(--navy-700); color: var(--green);
+    font-weight: 800; font-size: 11px; letter-spacing: .04em; text-transform: uppercase;
+    text-align: left; padding: 8px 14px; border-bottom: 1px solid var(--border);
+  }
+  table.xls-table tbody td { padding: 9px 14px; border-bottom: 1px solid var(--grid); color: var(--text-primary); }
+  table.xls-table tbody tr:last-child td { border-bottom: none; }
+  table.xls-table tbody tr:hover { background: var(--accent-wash); }
+  table.xls-table tbody tr:nth-child(even) { background: rgba(255,255,255,0.02); }
+  .xls-rownum {
+    color: var(--text-muted); font-family: var(--mono); font-size: 11px;
+    width: 44px; text-align:center !important; background: var(--navy-700);
+  }
+  table.xls-table tbody .xls-rownum { background: rgba(255,255,255,0.03); }
+  .empty-state { padding: 30px; text-align:center; color: var(--text-muted); font-size: 13px; }
+
+  .footer-note { margin-top: 20px; font-size: 11.5px; color: var(--text-muted); line-height:1.6; }
+  ::-webkit-scrollbar { width: 9px; height: 9px; }
+  ::-webkit-scrollbar-thumb { background: var(--baseline); border-radius: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+</style>
+
+<div class="viz-root">
+  <div class="banner">
+    <div class="banner-inner">
+      <svg class="banner-logo" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 470 96" role="img" aria-label="Talma Aprende">
+        <defs>
+          <linearGradient id="leafw" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0" stop-color="#3FD0C6"/>
+            <stop offset="1" stop-color="#14A8A0"/>
+          </linearGradient>
+        </defs>
+        <path d="M70 16 C40 8, 14 22, 10 40 C30 30, 52 28, 74 30 C70 24, 70 20, 70 16 Z" fill="url(#leafw)"/>
+        <text x="6" y="70" font-family="'Segoe UI', Arial, sans-serif" font-size="58" font-weight="800" fill="#FFFFFF" letter-spacing="-1">Talma</text>
+        <line x1="232" y1="26" x2="252" y2="74" stroke="#5C6B96" stroke-width="3" stroke-linecap="round"/>
+        <text x="262" y="62" font-family="'Segoe UI', Arial, sans-serif" font-size="34" font-weight="700" fill="#9CCC65" letter-spacing="2">APRENDE</text>
+      </svg>
+      <div class="banner-text">
+        <h1>Instructores, Cursos y Bases</h1>
+        <p>Listas de referencia de la encuesta de evaluación curso/instructor que se presenta en las clases presenciales.</p>
+      </div>
+    </div>
+  </div>
+  <div class="wrap">
+
+    <div class="kpis" id="kpis"></div>
+
+    <div class="card">
+      <div class="tabs" id="tabs"></div>
+      <div class="filters">
+        <input type="text" id="f-search" placeholder="Buscar…">
+        <span class="count" id="f-count"></span>
+        <button type="button" id="btn-add" class="btn-add" title="Agregar un elemento nuevo a la lista activa">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+          <span id="btn-add-label">Agregar</span>
+        </button>
+        <button type="button" id="btn-excel" class="btn-excel" title="Descarga las listas actuales en Excel">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#0A1230" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M4 19h16"/></svg>
+          Descargar Excel
+        </button>
+      </div>
+      <div class="add-row" id="add-row" style="display:none">
+        <input type="text" id="add-input" placeholder="">
+        <button type="button" class="save" id="add-save">Guardar</button>
+        <button type="button" id="add-cancel">Cancelar</button>
+      </div>
+      <div class="list-wrap" id="list-wrap"></div>
+    </div>
+
+    <p class="footer-note">
+      Talma Servicios Aeroportuarios · Fuente: "Metadatos Encuesta Satisfacción v2026.xlsx" (hojas INSTRUCTORES, CURSOS, BASES). Listas de referencia únicamente — esta página no recolecta ni guarda respuestas. Los elementos agregados con el botón "Agregar" se guardan solo en este navegador (no se comparten con otros usuarios del enlace) hasta que se incorporen al Excel oficial.
+    </p>
+  </div>
+</div>
+
+<script>
+const DATA = __DATA_JSON__;
+function fmt(n) { return n.toLocaleString('es-CO'); }
+const REDUCED_MOTION = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+function animateCount(el, target, duration) {
+  if (REDUCED_MOTION || !target) { el.textContent = fmt(target); return; }
+  const t0 = performance.now();
+  function tick(now) {
+    const p = Math.min(1, (now - t0) / duration);
+    const eased = 1 - Math.pow(1 - p, 3);
+    el.textContent = fmt(Math.round(target * eased));
+    if (p < 1) requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+}
+
+const TABS = [
+  { key: 'instructores', label: 'Instructores', singular: 'instructor', header: DATA.headers.instructores },
+  { key: 'cursos', label: 'Cursos', singular: 'curso', header: DATA.headers.cursos },
+  { key: 'bases', label: 'Bases', singular: 'base', header: DATA.headers.bases },
+];
+let activeTab = 'instructores';
+
+const STORAGE_KEY = 'encuesta_agregados_v1';
+function loadExtras() {
+  try {
+    const raw = JSON.parse(localStorage.getItem(STORAGE_KEY));
+    return { instructores: raw?.instructores || [], cursos: raw?.cursos || [], bases: raw?.bases || [] };
+  } catch (e) { return { instructores: [], cursos: [], bases: [] }; }
+}
+function saveExtras() { localStorage.setItem(STORAGE_KEY, JSON.stringify(extras)); }
+let extras = loadExtras();
+function currentData(key) { return DATA[key].concat(extras[key]); }
+
+(function renderKPIs(){
+  const kpisEl = document.getElementById('kpis');
+  kpisEl.innerHTML = TABS.map((t,i) => `
+    <div class="kpi" data-key="${t.key}">
+      <div class="label">${t.label}</div>
+      <div class="value" data-i="${i}">0</div>
+      <div class="foot">clic para ver la lista</div>
+    </div>`).join('');
+  kpisEl.querySelectorAll('.value').forEach(el => {
+    const t = TABS[+el.dataset.i];
+    animateCount(el, currentData(t.key).length, 800);
+  });
+  kpisEl.querySelectorAll('.kpi').forEach(el => {
+    el.addEventListener('click', () => setTab(el.dataset.key));
+  });
+})();
+
+function updateKPI(key) {
+  const el = document.querySelector('.kpi[data-key="' + key + '"] .value');
+  if (el) el.textContent = fmt(currentData(key).length);
+}
+
+function renderTabs() {
+  document.getElementById('tabs').innerHTML = TABS.map(t =>
+    `<button class="tab-btn ${t.key===activeTab?'active':''}" data-key="${t.key}">${t.label} (${currentData(t.key).length})</button>`
+  ).join('');
+  document.querySelectorAll('.tab-btn').forEach(b => b.addEventListener('click', () => setTab(b.dataset.key)));
+  document.querySelectorAll('.kpi').forEach(k => k.classList.toggle('active', k.dataset.key === activeTab));
+  const tab = TABS.find(t => t.key === activeTab);
+  document.getElementById('btn-add-label').textContent = 'Agregar ' + tab.singular;
+  document.getElementById('add-input').placeholder = 'Nuevo ' + tab.singular + '…';
+}
+
+function setTab(key) {
+  activeTab = key;
+  hideAddRow();
+  renderTabs();
+  renderList();
+}
+
+function renderList() {
+  const tab = TABS.find(t => t.key === activeTab);
+  const q = document.getElementById('f-search').value.trim().toUpperCase();
+  const base = DATA[tab.key];
+  // conserva el indice de fila original de Excel (fila 2 = primer dato, igual que en la hoja); los agregados manuales no tienen fila de origen
+  const withRow = currentData(tab.key).map((v, i) => ({ v, excelRow: i + 2, added: i >= base.length }));
+  const items = q ? withRow.filter(x => x.v.toUpperCase().includes(q)) : withRow;
+  document.getElementById('f-count').textContent = fmt(items.length) + ' de ' + fmt(withRow.length);
+  const wrap = document.getElementById('list-wrap');
+  wrap.innerHTML = '';
+  if (!items.length) {
+    const empty = document.createElement('div');
+    empty.className = 'empty-state';
+    empty.textContent = 'Sin resultados.';
+    wrap.appendChild(empty);
+    return;
+  }
+  const table = document.createElement('table');
+  table.className = 'xls-table';
+  const thead = document.createElement('thead');
+  thead.innerHTML = `<tr><th class="xls-rownum"></th><th>${tab.header}</th></tr>`;
+  const tbody = document.createElement('tbody');
+  items.forEach(x => {
+    const tr = document.createElement('tr');
+    const tdRow = document.createElement('td');
+    tdRow.className = 'xls-rownum' + (x.added ? ' added' : '');
+    tdRow.textContent = x.added ? '+' : x.excelRow;
+    if (x.added) tdRow.title = 'Agregado manualmente (solo en este navegador)';
+    const tdVal = document.createElement('td');
+    tdVal.textContent = x.v;
+    if (x.added) tdVal.className = 'added';
+    tr.append(tdRow, tdVal);
+    tbody.appendChild(tr);
+  });
+  table.append(thead, tbody);
+  wrap.appendChild(table);
+}
+
+function showAddRow() {
+  document.getElementById('add-row').style.display = 'flex';
+  const input = document.getElementById('add-input');
+  input.value = '';
+  input.focus();
+}
+function hideAddRow() {
+  document.getElementById('add-row').style.display = 'none';
+}
+function saveAdd() {
+  const tab = TABS.find(t => t.key === activeTab);
+  const val = document.getElementById('add-input').value.trim().toUpperCase();
+  if (!val) return;
+  const exists = currentData(tab.key).some(v => v.toUpperCase() === val);
+  if (exists) { alert('Ya existe en la lista de ' + tab.label.toLowerCase() + '.'); return; }
+  extras[tab.key].push(val);
+  saveExtras();
+  hideAddRow();
+  updateKPI(tab.key);
+  renderTabs();
+  renderList();
+}
+document.getElementById('btn-add').addEventListener('click', showAddRow);
+document.getElementById('add-cancel').addEventListener('click', hideAddRow);
+document.getElementById('add-save').addEventListener('click', saveAdd);
+document.getElementById('add-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') saveAdd();
+  if (e.key === 'Escape') hideAddRow();
+});
+
+function xmlEsc(s) {
+  return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function descargarExcel() {
+  const fecha = new Date().toISOString().slice(0, 10);
+  let sheets = '';
+  TABS.forEach(t => {
+    const base = DATA[t.key];
+    const rows = currentData(t.key);
+    let rowsXml = '<Row ss:StyleID="Header"><Cell><Data ss:Type="String">' + xmlEsc(t.header) + '</Data></Cell></Row>\n';
+    rows.forEach((v, i) => {
+      const styleId = i >= base.length ? ' ss:StyleID="Added"' : '';
+      rowsXml += '<Row' + styleId + '><Cell><Data ss:Type="String">' + xmlEsc(v) + '</Data></Cell></Row>\n';
+    });
+    sheets += '<Worksheet ss:Name="' + xmlEsc(t.label) + '"><Table><Column ss:Width="320"/>\n' + rowsXml + '</Table></Worksheet>\n';
+  });
+  const xml = '<?xml version="1.0" encoding="UTF-8"?>\n' +
+    '<?mso-application progid="Excel.Sheet"?>\n' +
+    '<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">\n' +
+    '<Styles>\n' +
+    '<Style ss:ID="Header"><Font ss:Bold="1" ss:Color="#FFFFFF"/><Interior ss:Color="#16245C" ss:Pattern="Solid"/></Style>\n' +
+    '<Style ss:ID="Added"><Font ss:Color="#5C9613" ss:Bold="1"/></Style>\n' +
+    '</Styles>\n' +
+    sheets +
+    '</Workbook>';
+  const blob = new Blob(['﻿' + xml], { type: 'application/vnd.ms-excel' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'Catalogo_Encuesta_' + fecha + '.xls';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+document.getElementById('btn-excel').addEventListener('click', descargarExcel);
+
+document.getElementById('f-search').addEventListener('input', renderList);
+renderTabs();
+renderList();
+</script>
