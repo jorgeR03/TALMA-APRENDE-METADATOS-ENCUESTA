@@ -223,6 +223,19 @@ const TABS = [
 let activeTab = 'instructores';
 
 const STORAGE_KEY = 'encuesta_cambios_v1';
+// Aviso por correo cuando se agrega un curso nuevo (pedido 2026-07-23). TODO: cambiar
+// NOTIF_API_BASE a la URL real del backend cuando quede desplegado en un servidor
+// permanente — mientras tanto solo funciona si quien usa esta pagina tiene el backend
+// corriendo en su propia maquina (localhost:8080). Si el backend no responde, el
+// catalogo sigue funcionando igual (el aviso se descarta en silencio).
+const NOTIF_API_BASE = 'http://localhost:8080';
+function notificarCursoNuevo(curso) {
+  fetch(NOTIF_API_BASE + '/api/public/encuesta/curso-nuevo', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ curso: curso }),
+  }).catch(function () { /* silencioso: no bloquea el uso del catalogo si el backend no esta disponible */ });
+}
 function emptyLists() { return { instructores: [], cursos: [], bases: [] }; }
 function loadState() {
   try {
@@ -288,7 +301,10 @@ function renderList() {
   const baseRows = DATA[tab.key]
     .map((v, i) => ({ v, excelRow: i + 2, added: false }))
     .filter(x => !removedSet.has(x.v));
-  const extraRows = state.extras[tab.key].map(v => ({ v, excelRow: null, added: true }));
+  // los agregados manualmente siguen la numeracion (fila siguiente a la ultima del Excel),
+  // en vez de mostrar "+" — mas facil de referenciar/contar de un vistazo.
+  const siguienteFila = DATA[tab.key].length + 2;
+  const extraRows = state.extras[tab.key].map((v, i) => ({ v, excelRow: siguienteFila + i, added: true }));
   const allRows = baseRows.concat(extraRows);
   const items = q ? allRows.filter(x => x.v.toUpperCase().includes(q)) : allRows;
   document.getElementById('f-count').textContent = fmt(items.length) + ' de ' + fmt(allRows.length);
@@ -310,7 +326,7 @@ function renderList() {
     const tr = document.createElement('tr');
     const tdRow = document.createElement('td');
     tdRow.className = 'xls-rownum' + (x.added ? ' added' : '');
-    tdRow.textContent = x.added ? '+' : x.excelRow;
+    tdRow.textContent = x.excelRow;
     if (x.added) tdRow.title = 'Agregado manualmente (solo en este navegador)';
     const tdVal = document.createElement('td');
     tdVal.textContent = x.v;
@@ -363,6 +379,7 @@ function saveAdd() {
   // si antes se habia eliminado este mismo valor de la base, "agregarlo" lo restaura
   state.removed[tab.key] = state.removed[tab.key].filter(v => v !== val);
   if (!DATA[tab.key].includes(val)) state.extras[tab.key].push(val);
+  if (tab.key === 'cursos') notificarCursoNuevo(val);
   saveState();
   hideAddRow();
   updateKPI(tab.key);
