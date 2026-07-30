@@ -176,31 +176,36 @@
       <div class="filters">
         <input type="text" id="f-search" placeholder="Buscar…">
         <span class="count" id="f-count"></span>
-        <button type="button" id="btn-add" class="btn-add" title="Agregar un elemento nuevo a la lista activa">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
-          <span id="btn-add-label">Agregar</span>
-        </button>
         <button type="button" id="btn-excel" class="btn-excel" title="Descarga las listas actuales en Excel">
           <svg viewBox="0 0 24 24" fill="none" stroke="#0A1230" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M4 19h16"/></svg>
           Descargar Excel
         </button>
       </div>
-      <div class="add-row" id="add-row" style="display:none">
-        <input type="text" id="add-input" placeholder="">
-        <button type="button" class="save" id="add-save">Guardar</button>
-        <button type="button" id="add-cancel">Cancelar</button>
-      </div>
       <div class="list-wrap" id="list-wrap"></div>
     </div>
 
     <p class="footer-note">
-      Talma Servicios Aeroportuarios · Fuente: "Metadatos Encuesta Satisfacción v2026.xlsx" (hojas INSTRUCTORES, CURSOS, BASES). Listas de referencia únicamente — esta página no recolecta ni guarda respuestas. Los elementos agregados con el botón "Agregar" se guardan solo en este navegador (no se comparten con otros usuarios del enlace) hasta que se incorporen al Excel oficial.
+      Talma Servicios Aeroportuarios · Catálogo compartido — se actualiza en tiempo real cuando el administrador agrega o elimina un instructor, curso o base. Solo lectura aquí: para editar, contacta al administrador del portal. Esta página no recolecta ni guarda respuestas de encuesta.
     </p>
   </div>
 </div>
 
 <script>
-const DATA = __DATA_JSON__;
+// Solo lectura — pedido explicito del usuario 2026-07-30: "necesito que
+// todo el que abra el link vea los cambios". Antes esta pagina horneaba los
+// datos en el propio archivo + guardaba Agregar/Eliminar en localStorage
+// (cada navegador veia solo lo suyo). Ahora el catalogo vive en la base de
+// datos del portal; Agregar/Eliminar se hace desde el panel admin
+// (protegido, solo ADMIN) y esta pagina solo lee, siempre en vivo.
+//
+// TODO: cambiar API_BASE a la URL real del backend cuando quede desplegado
+// en un servidor permanente (Railway/Render/etc.) — mientras tanto, esta
+// pagina solo muestra datos actualizados si el backend corre en la MISMA
+// maquina donde se abre el link (localhost:8080). Una vez desplegado, con
+// la URL real cualquiera que abra el link vera el catalogo compartido de
+// verdad, sin importar donde este.
+const API_BASE = 'http://localhost:8080';
+
 function fmt(n) { return n.toLocaleString('es-CO'); }
 const REDUCED_MOTION = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 function animateCount(el, target, duration) {
@@ -215,45 +220,24 @@ function animateCount(el, target, duration) {
   requestAnimationFrame(tick);
 }
 
+const HEADERS = {
+  instructores: 'NOMBRES COMPLETOS',
+  cursos: 'CURSOS ENCUESTA EVALUACION CURSO/INSTRUCTOR',
+  bases: 'BASES',
+};
 const TABS = [
-  { key: 'instructores', label: 'Instructores', singular: 'instructor', header: DATA.headers.instructores },
-  { key: 'cursos', label: 'Cursos', singular: 'curso', header: DATA.headers.cursos },
-  { key: 'bases', label: 'Bases', singular: 'base', header: DATA.headers.bases },
+  { key: 'instructores', label: 'Instructores', singular: 'instructor', header: HEADERS.instructores },
+  { key: 'cursos', label: 'Cursos', singular: 'curso', header: HEADERS.cursos },
+  { key: 'bases', label: 'Bases', singular: 'base', header: HEADERS.bases },
 ];
 let activeTab = 'instructores';
+let DATA = { instructores: [], cursos: [], bases: [] };
 
-const STORAGE_KEY = 'encuesta_cambios_v1';
-// Aviso por correo cuando se agrega un curso nuevo (pedido 2026-07-23). TODO: cambiar
-// NOTIF_API_BASE a la URL real del backend cuando quede desplegado en un servidor
-// permanente — mientras tanto solo funciona si quien usa esta pagina tiene el backend
-// corriendo en su propia maquina (localhost:8080). Si el backend no responde, el
-// catalogo sigue funcionando igual (el aviso se descarta en silencio).
-const NOTIF_API_BASE = 'http://localhost:8080';
-function notificarCursoNuevo(curso) {
-  fetch(NOTIF_API_BASE + '/api/public/encuesta/curso-nuevo', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ curso: curso }),
-  }).catch(function () { /* silencioso: no bloquea el uso del catalogo si el backend no esta disponible */ });
-}
-function emptyLists() { return { instructores: [], cursos: [], bases: [] }; }
-function loadState() {
-  try {
-    const raw = JSON.parse(localStorage.getItem(STORAGE_KEY));
-    return {
-      extras: { instructores: raw?.extras?.instructores || [], cursos: raw?.extras?.cursos || [], bases: raw?.extras?.bases || [] },
-      removed: { instructores: raw?.removed?.instructores || [], cursos: raw?.removed?.cursos || [], bases: raw?.removed?.bases || [] },
-    };
-  } catch (e) { return { extras: emptyLists(), removed: emptyLists() }; }
-}
-function saveState() { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
-let state = loadState();
 function currentData(key) {
-  const removedSet = new Set(state.removed[key]);
-  return DATA[key].filter(v => !removedSet.has(v)).concat(state.extras[key]);
+  return DATA[key];
 }
 
-(function renderKPIs(){
+function renderKPIs(){
   const kpisEl = document.getElementById('kpis');
   kpisEl.innerHTML = TABS.map((t,i) => `
     <div class="kpi" data-key="${t.key}">
@@ -268,11 +252,6 @@ function currentData(key) {
   kpisEl.querySelectorAll('.kpi').forEach(el => {
     el.addEventListener('click', () => setTab(el.dataset.key));
   });
-})();
-
-function updateKPI(key) {
-  const el = document.querySelector('.kpi[data-key="' + key + '"] .value');
-  if (el) el.textContent = fmt(currentData(key).length);
 }
 
 function renderTabs() {
@@ -281,14 +260,10 @@ function renderTabs() {
   ).join('');
   document.querySelectorAll('.tab-btn').forEach(b => b.addEventListener('click', () => setTab(b.dataset.key)));
   document.querySelectorAll('.kpi').forEach(k => k.classList.toggle('active', k.dataset.key === activeTab));
-  const tab = TABS.find(t => t.key === activeTab);
-  document.getElementById('btn-add-label').textContent = 'Agregar ' + tab.singular;
-  document.getElementById('add-input').placeholder = 'Nuevo ' + tab.singular + '…';
 }
 
 function setTab(key) {
   activeTab = key;
-  hideAddRow();
   renderTabs();
   renderList();
 }
@@ -296,16 +271,8 @@ function setTab(key) {
 function renderList() {
   const tab = TABS.find(t => t.key === activeTab);
   const q = document.getElementById('f-search').value.trim().toUpperCase();
-  const removedSet = new Set(state.removed[tab.key]);
-  // conserva el indice de fila original de Excel (fila 2 = primer dato, igual que en la hoja); los agregados manuales no tienen fila de origen
-  const baseRows = DATA[tab.key]
-    .map((v, i) => ({ v, excelRow: i + 2, added: false }))
-    .filter(x => !removedSet.has(x.v));
-  // los agregados manualmente siguen la numeracion (fila siguiente a la ultima del Excel),
-  // en vez de mostrar "+" — mas facil de referenciar/contar de un vistazo.
-  const siguienteFila = DATA[tab.key].length + 2;
-  const extraRows = state.extras[tab.key].map((v, i) => ({ v, excelRow: siguienteFila + i, added: true }));
-  const allRows = baseRows.concat(extraRows);
+  // conserva el indice de fila del catalogo (fila 2 = primer dato, igual que en el Excel original)
+  const allRows = DATA[tab.key].map((v, i) => ({ v, excelRow: i + 2 }));
   const items = q ? allRows.filter(x => x.v.toUpperCase().includes(q)) : allRows;
   document.getElementById('f-count').textContent = fmt(items.length) + ' de ' + fmt(allRows.length);
   const wrap = document.getElementById('list-wrap');
@@ -320,79 +287,21 @@ function renderList() {
   const table = document.createElement('table');
   table.className = 'xls-table';
   const thead = document.createElement('thead');
-  thead.innerHTML = `<tr><th class="xls-rownum"></th><th>${tab.header}</th><th class="xls-action"></th></tr>`;
+  thead.innerHTML = `<tr><th class="xls-rownum"></th><th>${tab.header}</th></tr>`;
   const tbody = document.createElement('tbody');
   items.forEach(x => {
     const tr = document.createElement('tr');
     const tdRow = document.createElement('td');
-    tdRow.className = 'xls-rownum' + (x.added ? ' added' : '');
+    tdRow.className = 'xls-rownum';
     tdRow.textContent = x.excelRow;
-    if (x.added) tdRow.title = 'Agregado manualmente (solo en este navegador)';
     const tdVal = document.createElement('td');
     tdVal.textContent = x.v;
-    if (x.added) tdVal.className = 'added';
-    const tdAction = document.createElement('td');
-    tdAction.className = 'xls-action';
-    const delBtn = document.createElement('button');
-    delBtn.type = 'button';
-    delBtn.className = 'btn-del';
-    delBtn.title = 'Eliminar';
-    delBtn.textContent = '×';
-    delBtn.addEventListener('click', () => deleteItem(tab.key, x.v));
-    tdAction.appendChild(delBtn);
-    tr.append(tdRow, tdVal, tdAction);
+    tr.append(tdRow, tdVal);
     tbody.appendChild(tr);
   });
   table.append(thead, tbody);
   wrap.appendChild(table);
 }
-
-function deleteItem(key, value) {
-  const tab = TABS.find(t => t.key === key);
-  if (!confirm('¿Eliminar "' + value + '" de la lista de ' + tab.label.toLowerCase() + '?')) return;
-  if (state.extras[key].includes(value)) {
-    state.extras[key] = state.extras[key].filter(v => v !== value);
-  } else if (!state.removed[key].includes(value)) {
-    state.removed[key].push(value);
-  }
-  saveState();
-  updateKPI(key);
-  renderTabs();
-  renderList();
-}
-
-function showAddRow() {
-  document.getElementById('add-row').style.display = 'flex';
-  const input = document.getElementById('add-input');
-  input.value = '';
-  input.focus();
-}
-function hideAddRow() {
-  document.getElementById('add-row').style.display = 'none';
-}
-function saveAdd() {
-  const tab = TABS.find(t => t.key === activeTab);
-  const val = document.getElementById('add-input').value.trim().toUpperCase();
-  if (!val) return;
-  const exists = currentData(tab.key).some(v => v.toUpperCase() === val);
-  if (exists) { alert('Ya existe en la lista de ' + tab.label.toLowerCase() + '.'); return; }
-  // si antes se habia eliminado este mismo valor de la base, "agregarlo" lo restaura
-  state.removed[tab.key] = state.removed[tab.key].filter(v => v !== val);
-  if (!DATA[tab.key].includes(val)) state.extras[tab.key].push(val);
-  if (tab.key === 'cursos') notificarCursoNuevo(val);
-  saveState();
-  hideAddRow();
-  updateKPI(tab.key);
-  renderTabs();
-  renderList();
-}
-document.getElementById('btn-add').addEventListener('click', showAddRow);
-document.getElementById('add-cancel').addEventListener('click', hideAddRow);
-document.getElementById('add-save').addEventListener('click', saveAdd);
-document.getElementById('add-input').addEventListener('keydown', e => {
-  if (e.key === 'Enter') saveAdd();
-  if (e.key === 'Escape') hideAddRow();
-});
 
 function xmlEsc(s) {
   return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
@@ -401,12 +310,9 @@ function descargarExcel() {
   const fecha = new Date().toISOString().slice(0, 10);
   let sheets = '';
   TABS.forEach(t => {
-    const rows = currentData(t.key);
-    const extraSet = new Set(state.extras[t.key]);
     let rowsXml = '<Row ss:StyleID="Header"><Cell><Data ss:Type="String">' + xmlEsc(t.header) + '</Data></Cell></Row>\n';
-    rows.forEach(v => {
-      const styleId = extraSet.has(v) ? ' ss:StyleID="Added"' : '';
-      rowsXml += '<Row' + styleId + '><Cell><Data ss:Type="String">' + xmlEsc(v) + '</Data></Cell></Row>\n';
+    currentData(t.key).forEach(v => {
+      rowsXml += '<Row><Cell><Data ss:Type="String">' + xmlEsc(v) + '</Data></Cell></Row>\n';
     });
     sheets += '<Worksheet ss:Name="' + xmlEsc(t.label) + '"><Table><Column ss:Width="320"/>\n' + rowsXml + '</Table></Worksheet>\n';
   });
@@ -415,7 +321,6 @@ function descargarExcel() {
     '<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">\n' +
     '<Styles>\n' +
     '<Style ss:ID="Header"><Font ss:Bold="1" ss:Color="#FFFFFF"/><Interior ss:Color="#16245C" ss:Pattern="Solid"/></Style>\n' +
-    '<Style ss:ID="Added"><Font ss:Color="#5C9613" ss:Bold="1"/></Style>\n' +
     '</Styles>\n' +
     sheets +
     '</Workbook>';
@@ -430,8 +335,21 @@ function descargarExcel() {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 document.getElementById('btn-excel').addEventListener('click', descargarExcel);
-
 document.getElementById('f-search').addEventListener('input', renderList);
-renderTabs();
-renderList();
+
+async function cargarCatalogo() {
+  document.getElementById('list-wrap').innerHTML = '<div class="empty-state">Cargando catálogo…</div>';
+  try {
+    const res = await fetch(API_BASE + '/api/public/encuesta/catalogo');
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    DATA = await res.json();
+    renderKPIs();
+    renderTabs();
+    renderList();
+  } catch (e) {
+    document.getElementById('list-wrap').innerHTML =
+      '<div class="empty-state">No se pudo cargar el catálogo. Intenta de nuevo en unos minutos.</div>';
+  }
+}
+cargarCatalogo();
 </script>
