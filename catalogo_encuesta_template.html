@@ -269,7 +269,7 @@ function renderList() {
   const tab = TABS.find(t => t.key === activeTab);
   const q = document.getElementById('f-search').value.trim().toUpperCase();
   // conserva el indice de fila del catalogo (fila 2 = primer dato, igual que en el Excel original)
-  const allRows = DATA[tab.key].map((v, i) => ({ v, excelRow: i + 2 }));
+  const allRows = DATA[tab.key].map((v, i) => ({ v, numeroFila: i + 1 }));
   const items = q ? allRows.filter(x => x.v.toUpperCase().includes(q)) : allRows;
   document.getElementById('f-count').textContent = fmt(items.length) + ' de ' + fmt(allRows.length);
   const wrap = document.getElementById('list-wrap');
@@ -290,7 +290,7 @@ function renderList() {
     const tr = document.createElement('tr');
     const tdRow = document.createElement('td');
     tdRow.className = 'xls-rownum';
-    tdRow.textContent = x.excelRow;
+    tdRow.textContent = x.numeroFila;
     const tdVal = document.createElement('td');
     tdVal.textContent = x.v;
     tr.append(tdRow, tdVal);
