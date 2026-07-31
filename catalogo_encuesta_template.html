@@ -198,13 +198,10 @@
 // datos del portal; Agregar/Eliminar se hace desde el panel admin
 // (protegido, solo ADMIN) y esta pagina solo lee, siempre en vivo.
 //
-// TODO: cambiar API_BASE a la URL real del backend cuando quede desplegado
-// en un servidor permanente (Railway/Render/etc.) — mientras tanto, esta
-// pagina solo muestra datos actualizados si el backend corre en la MISMA
-// maquina donde se abre el link (localhost:8080). Una vez desplegado, con
-// la URL real cualquiera que abra el link vera el catalogo compartido de
-// verdad, sin importar donde este.
-const API_BASE = 'http://localhost:8080';
+// Backend real en Railway (desplegado 2026-07-31). Antes apuntaba a
+// localhost:8080 a proposito, mientras no habia backend publico — por eso
+// el catalogo no cargaba para nadie fuera de la maquina de desarrollo.
+const API_BASE = 'https://backend-production-be6e1.up.railway.app';
 
 function fmt(n) { return n.toLocaleString('es-CO'); }
 const REDUCED_MOTION = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
